@@ -602,32 +602,6 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	return ret;
 }
 
-static int dwc3_ep0_set_interface(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
-{
-	u32 alt_setting;
-	enum usb_device_state state = dwc->gadget.state;
-	int ret;
-
-	alt_setting = le16_to_cpu(ctrl->wValue);
-
-	ret = dwc3_ep0_delegate_req(dwc, ctrl);
-
-	switch (state) {
-
-	case USB_STATE_CONFIGURED:
-		/* if the alt_setting matches and the alt_setting is non zero */
-		if (alt_setting && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
-			dwc->resize_fifos = true;
-			dev_dbg(dwc->dev, "resize fifos flag SET\n");
-		}
-		break;
-
-	default:
-		dev_err(dwc->dev, "default case\n");
-	}
-	return ret;
-}
-
 static void dwc3_ep0_set_sel_cmpl(struct usb_ep *ep, struct usb_request *req)
 {
 	struct dwc3_ep	*dep = to_dwc3_ep(ep);

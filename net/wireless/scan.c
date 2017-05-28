@@ -342,40 +342,6 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 	__cfg80211_bss_expire(dev, jiffies - IEEE80211_SCAN_RESULT_EXPIRE);
 }
 
-static bool cfg80211_bss_expire_oldest(struct cfg80211_registered_device *rdev)
-{
-	struct cfg80211_internal_bss *bss, *oldest = NULL;
-	bool ret;
-
-	lockdep_assert_held(&rdev->bss_lock);
-
-	list_for_each_entry(bss, &rdev->bss_list, list) {
-		if (atomic_read(&bss->hold))
-			continue;
-
-		if (!list_empty(&bss->hidden_list) &&
-		    !bss->pub.hidden_beacon_bss)
-			continue;
-
-		if (oldest && time_before(oldest->ts, bss->ts))
-			continue;
-		oldest = bss;
-	}
-
-	if (WARN_ON(!oldest))
-		return false;
-
-	/*
-	 * The callers make sure to increase rdev->bss_generation if anything
-	 * gets removed (and a new entry added), so there's no need to also do
-	 * it here.
-	 */
-
-	ret = __cfg80211_unlink_bss(rdev, oldest);
-	WARN_ON(!ret);
-	return ret;
-}
-
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 {
 	while (len > 2 && ies[0] != eid) {
@@ -881,14 +847,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 			}
 		}
 
-		if (dev->bss_entries >= bss_entries_limit &&
-		    !cfg80211_bss_expire_oldest(dev)) {
-			kfree(new);
-			goto drop;
-		}
-
 		list_add_tail(&new->list, &dev->bss_list);
-		dev->bss_entries++;
 		rb_insert_bss(dev, new);
 		found = new;
 	}
